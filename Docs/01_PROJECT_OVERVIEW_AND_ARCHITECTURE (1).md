@@ -27,7 +27,7 @@ The intellectual core remains an **explainable detector**: every alert carries h
 | Capability | Description |
 |------------|-------------|
 | USB insertion detection | Real-time detection of removable storage devices |
-| Audit-policy awareness | Check whether required audit settings are enabled; never silently change them |
+| Audit-policy awareness | On USB plug-in, check required audit settings and enable them if disabled |
 | Session reconstruction | Rebuild complete USB sessions (connect → file activity → disconnect) |
 | File-level monitoring | Detect reads/writes to removable media when audit settings allow it |
 | Explainable risk scoring | Weighted rules produce a score + natural-language reasons citing Event IDs |
@@ -47,7 +47,7 @@ The intellectual core remains an **explainable detector**: every alert carries h
 │  ┌───────────────────────────────────────────────────────┐  │
 │  │  .NET 8 Worker Service                                │  │
 │  │  - Watches for USB device arrival                     │  │
-│  │  - Checks audit settings (does NOT auto-enable)       │  │
+│  │  - Checks/enables required audit settings on plug-in  │  │
 │  │  - Reads Event Logs only when USB is present          │  │
 │  │  - Reconstructs sessions + calculates risk score      │  │
 │  │  - Local SQLite / file queue for offline buffering    │  │
@@ -122,16 +122,16 @@ The intellectual core remains an **explainable detector**: every alert carries h
 
 ## 6. Important Design Decision — Audit Policy Handling
 
-**Do not automatically enable Windows audit policies.**
-
-Rationale: Changing audit policy is a privileged, organisation-wide decision. Many enterprises will refuse a product that modifies Local Security Policy without explicit administrator consent.
+**On USB plug-in, automatically enable required Windows audit policies if they are disabled.**
 
 Required behaviour:
 
-1. On USB insertion, query current audit policy state.
-2. If the necessary settings (Audit PNP Activity, Audit Removable Storage) are **not** enabled, raise a high-severity alert: “Detection incomplete – required audit settings are disabled”.
-3. Optionally ship a separate elevated PowerShell helper that an administrator can run once to enable the settings.
-4. Only process file-level write/read events when the settings are confirmed active.
+1. On USB insertion, query current audit policy state (Audit PNP Activity / Plug and Play Events, Audit Removable Storage).
+2. If either setting is **not** enabled, enable Success/Failure auditing via `auditpol /set`, then re-query.
+3. If settings remain incomplete after the attempt, raise a high-severity alert: “Detection incomplete – required audit settings are disabled”.
+4. Process file-level write/read events when the settings are confirmed active.
+
+Known limitation: domain Group Policy may override local enablement on refresh; early session moments may miss file-level events until policy is on. The service account needs rights to run `auditpol /set`.
 
 ---
 
@@ -158,7 +158,6 @@ Required behaviour:
 
 ## 9. Out of Scope for v1 (explicit)
 
-- Automatic enabling of Windows audit policies.
 - Stripe payment collection (design the tables only).
 - Mobile applications.
 - macOS / Linux agents.

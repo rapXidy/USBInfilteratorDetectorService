@@ -53,11 +53,11 @@ On USB insertion the service **must**:
 1. Query the current state of:
    - Audit PNP Activity
    - Audit Removable Storage
-2. If either setting is **disabled**, generate a high-severity alert with the reason:  
+2. If either setting is **disabled**, enable Success/Failure auditing for the missing subcategory via `auditpol /set`, then re-query.
+3. If settings remain incomplete after the enable attempt (for example insufficient privilege or domain GPO override), generate a high-severity alert with the reason:  
    `"Required audit settings are disabled – file-level detection incomplete"`.
-3. **Never** attempt to enable or modify Windows audit policies automatically.
 
-Rationale: changing audit policy is a privileged organisational decision. Many enterprises will reject a product that modifies Local Security Policy without explicit administrator consent.
+Known limitation: domain Group Policy can re-disable local audit settings on refresh; the first moments of a session may also miss file-level events until policy is active.
 
 ### 2.3 Event log reading
 Only while a USB device is connected (or shortly after), read the relevant channels. Key Event IDs include (non-exhaustive):
@@ -217,6 +217,6 @@ The Worker Service **must** emit payloads that conform to the following shape (t
 
 ## 7. Related Documents
 
-- `01_PROJECT_OVERVIEW_AND_ARCHITECTURE.md` — system-wide architecture and the decision not to auto-enable audit policies
+- `01_PROJECT_OVERVIEW_AND_ARCHITECTURE.md` — system-wide architecture and audit-policy handling on USB plug-in
 - `03_BACKEND_API.md` — API endpoints, authentication method for the service, and database schema that will store the payloads
 - `04_FRONTEND_AND_INTEGRATION.md` — how auditors will eventually view the data the service produces

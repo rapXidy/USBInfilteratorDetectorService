@@ -137,7 +137,7 @@ public sealed class UsbDetectorJob : IUsbDetectorJob
     }
 
     /// <summary>
-    /// Checks audit policy (once), reads new events, and updates session volume/reasons inputs.
+    /// Checks audit policy once per session (enabling if needed), then reads events and updates volume/reasons.
     /// </summary>
     private async Task EnrichSessionAsync(
         UsbSessionState session,
@@ -147,7 +147,7 @@ public sealed class UsbDetectorJob : IUsbDetectorJob
         if (!session.AuditChecked)
         {
             session.AuditSettings = await _auditPolicy
-                .GetAuditSettingsAsync(cancellationToken)
+                .EnsureRequiredAuditSettingsAsync(cancellationToken)
                 .ConfigureAwait(false);
             session.AuditChecked = true;
         }
