@@ -205,7 +205,7 @@ Key endpoints the frontend will call:
 
 ## 11. Related Documents
 
-- `01_PROJECT_OVERVIEW_AND_ARCHITECTURE.md` — architecture, security principles, and the decision **not** to auto-enable Windows audit policies.
+- `01_PROJECT_OVERVIEW_AND_ARCHITECTURE.md` — architecture, security principles, and audit-policy enablement on USB plug-in.
 - `02_WINDOWS_WORKER_SERVICE.md` — payload contract produced by the endpoint agent.
 - `03_BACKEND_API.md` — exact API contracts, data shapes, and risk-score structure that the frontend must render.
 

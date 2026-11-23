@@ -16,14 +16,14 @@ It detects USB / removable storage activity, checks whether required Windows aud
 | **Central API** | Ingests payloads, stores data, authenticates auditors, sends notifications |
 | **React Frontend** | Auditor dashboard |
 
-The service is designed to be **lightweight**, **least-privilege**, and **offline-resilient**. It never modifies Windows audit policy automatically.
+The service is designed to be **lightweight**, **least-privilege**, and **offline-resilient**. On USB plug-in it enables required audit settings if they were previously disabled.
 
 ---
 
 ## Key Features
 
 - **USB presence detection** – Starts intensive processing only when a removable device is connected
-- **Audit-policy awareness** – Checks whether “Audit PNP Activity” and “Audit Removable Storage” are enabled; raises a clear alert if they are missing
+- **Audit-policy awareness** – On USB plug-in, checks “Audit PNP Activity” and “Audit Removable Storage”; enables them if disabled, and raises an alert if enablement fails
 - **Session reconstruction** – Groups related events into logical USB sessions (connect → activity → disconnect)
 - **Explainable risk scoring** – Weighted rules produce a score plus human-readable reasons that cite Event Record IDs
 - **Host context** – Includes hostname, device ID, logged-in user, OS version, and CorpCode in every payload
@@ -79,17 +79,15 @@ Required settings (via `appsettings.json`, environment variables, or User Secret
 ### 1. USB detection
 Monitors for removable storage (WMI and/or Event Log channels). Intensive event processing runs only while a USB device is present (or for a short cool-down after removal).
 
-### 2. Audit-policy check (mandatory)
+### 2. Audit-policy check and enable (mandatory)
 On insertion the service queries:
 
 - Audit PNP Activity  
 - Audit Removable Storage  
 
-If either is disabled it emits a high-severity reason:
+If either is disabled, it attempts to enable Success/Failure auditing via `auditpol /set`, then re-queries. If settings remain incomplete (for example privilege or domain GPO denial), it emits a high-severity reason:
 
 > “Required audit settings are disabled – file-level detection incomplete”
-
-The service **never** attempts to enable or change Windows audit policy.
 
 ### 3. Event log reading
 Relevant Event IDs (non-exhaustive):
@@ -211,7 +209,7 @@ Protect the offline queue directory with appropriate ACLs.
 - Run under a least-privilege Windows account
 - Never store secrets in the binary or in source control
 - Protect the offline queue directory
-- Do **not** elevate privileges or modify system policy
+- Prefer least privilege; audit-policy enable on USB plug-in requires rights to run `auditpol /set`
 - Log security-relevant actions without writing sensitive data
 
 ---
@@ -220,8 +218,8 @@ Protect the offline queue directory with appropriate ACLs.
 
 | Situation | Behaviour |
 |-----------|-----------|
-| USB inserted | Start monitoring, check audit settings, open session |
-| Required audit settings missing | Raise high-severity alert, continue best-effort detection |
+| USB inserted | Start monitoring, check/enable audit settings, open session |
+| Required audit settings missing after enable attempt | Raise high-severity alert, continue best-effort detection |
 | File writes occur (audit on) | Capture events, update volume & risk score |
 | USB removed | Close session, finalise score, enqueue payload |
 | Network unavailable | Persist to local queue, keep collecting |
@@ -270,5 +268,5 @@ Specify your licence here (e.g. MIT, proprietary, etc.).
 
 1. Create a feature branch  
 2. Keep the service least-privilege and offline-first  
-3. Never add automatic audit-policy changes  
+3. Keep audit-policy enable scoped to the required USB detection subcategories  
 4. Open a pull request with a clear description of the change  
